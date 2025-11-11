@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ResultData } from '../types';
-import { ChartBarIcon, ArrowDownTrayIcon } from './icons';
+import { ChartBarIcon, ArrowDownTrayIcon, PrinterIcon } from './icons';
 
 interface ResultsStepProps {
   candidates: string[];
@@ -91,9 +91,13 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+  
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto printable-area">
       <h2 className="text-2xl font-bold text-green-400 mb-6 text-center">Bước 3: Kết quả bầu cử</h2>
       
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 mb-8">
@@ -159,7 +163,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
         </div>
       </div>
       
-      <div className="mt-8 text-center flex flex-col md:flex-row justify-center items-center gap-4">
+      <div className="mt-8 text-center flex flex-col md:flex-row justify-center items-center flex-wrap gap-4 no-print">
         <button
           onClick={onNewPoll}
           className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"
@@ -178,6 +182,13 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
         >
           <ArrowDownTrayIcon className="w-5 h-5" />
           Tải xuống Excel
+        </button>
+        <button
+          onClick={handlePrint}
+          className="w-full md:w-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out flex items-center justify-center gap-2"
+        >
+          <PrinterIcon className="w-5 h-5" />
+          In Kết Quả
         </button>
       </div>
     </div>

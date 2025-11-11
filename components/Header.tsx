@@ -1,8 +1,12 @@
 import React from 'react';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  className?: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ className = '' }) => {
   return (
-    <header className="bg-sky-600 p-4 shadow-lg">
+    <header className={`bg-sky-600 p-4 shadow-lg ${className}`}>
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center">
           <img 

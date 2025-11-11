@@ -88,11 +88,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 font-sans">
-      <Header />
+      <Header className="no-print" />
       <main className="container mx-auto px-4 py-8">
         {renderStep()}
       </main>
-      <footer className="text-center py-4 text-gray-500 text-sm">
+      <footer className="no-print text-center py-4 text-gray-500 text-sm">
         <p>Phát triển bởi ThanhPV</p>
       </footer>
     </div>
