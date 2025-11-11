@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ResultData } from '../types';
-import { ChartBarIcon } from './icons';
+import { ChartBarIcon, ArrowDownTrayIcon } from './icons';
 
 // Fix: Add Recharts to the window type to resolve TypeScript error.
 declare global {
@@ -61,6 +61,30 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
 
     return { results: resultData, totalVotes: talliedVotes, totalBallots: totalBallotsCount };
   }, [candidates, votes]);
+  
+  const handleDownloadExcel = () => {
+    const headers = ['Phiếu #', ...candidates];
+    let csvContent = headers.join(',') + '\n';
+
+    votes.forEach((ballot, index) => {
+        const row = [
+            `Phiếu ${index + 1}`,
+            ...candidates.map(candidate => ballot.includes(candidate) ? 'X' : '')
+        ];
+        csvContent += row.join(',') + '\n';
+    });
+
+    const bom = '\uFEFF'; // BOM for UTF-8 to support Vietnamese characters in Excel
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'ket-qua-bau-cu.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const renderChart = () => {
     if (!isChartReady) {
@@ -137,12 +161,19 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
         {renderChart()}
       </div>
       
-      <div className="mt-8 text-center">
+      <div className="mt-8 text-center flex flex-col md:flex-row justify-center items-center gap-4">
         <button
           onClick={onReview}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"
+          className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"
         >
           Xem lại bầu chọn
+        </button>
+        <button
+          onClick={handleDownloadExcel}
+          className="w-full md:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out flex items-center justify-center gap-2"
+        >
+          <ArrowDownTrayIcon className="w-5 h-5" />
+          Tải xuống Excel
         </button>
       </div>
     </div>
