@@ -6,9 +6,12 @@ interface ResultsStepProps {
   candidates: string[];
   votes: string[][];
   onReview: () => void;
+  candidatesToElect: number;
+  ballotCount: number;
+  onNewPoll: () => void;
 }
 
-const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }) => {
+const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, candidatesToElect, ballotCount, onNewPoll }) => {
 
   const { results, totalVotes, totalBallots, validBallots, invalidBallots } = useMemo(() => {
     const voteCounts: { [key: string]: number } = {};
@@ -19,10 +22,10 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
     let validBallotsCount = 0;
 
     votes.forEach(ballot => {
-      if (ballot.length > 0) {
+      if (ballot && ballot.length > 0) {
         validBallotsCount++;
       }
-      ballot.forEach(candidateName => {
+      (ballot || []).forEach(candidateName => {
         if (voteCounts.hasOwnProperty(candidateName)) {
           voteCounts[candidateName]++;
           talliedVotes++;
@@ -32,15 +35,27 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
 
     const invalidBallotsCount = totalBallotsCount - validBallotsCount;
 
-    const resultData: ResultData[] = candidates.map(candidate => {
-      const percentageValue = totalBallotsCount > 0 ? (voteCounts[candidate] / totalBallotsCount) * 100 : 0;
+    // Sort all candidates by vote count
+    const sortedCandidates = candidates
+      .map(c => ({ name: c, votes: voteCounts[c] }))
+      .sort((a, b) => b.votes - a.votes);
+
+    // Identify the names of the top N candidates
+    const topCandidateNames = sortedCandidates.slice(0, candidatesToElect).map(c => c.name);
+    
+    const resultData: ResultData[] = sortedCandidates.map(candidate => {
+      const percentageValue = ballotCount > 0 ? (candidate.votes / ballotCount) * 100 : 0;
+      
+      const meetsThreshold = candidate.votes > (ballotCount / 2);
+      const isInTopGroup = topCandidateNames.includes(candidate.name);
+
       return {
-        name: candidate,
-        votes: voteCounts[candidate],
+        name: candidate.name,
+        votes: candidate.votes,
         percentage: percentageValue.toFixed(2) + '%',
-        isWinner: percentageValue > 50,
+        isWinner: isInTopGroup && meetsThreshold,
       };
-    }).sort((a, b) => b.votes - a.votes);
+    });
 
     return { 
       results: resultData, 
@@ -49,7 +64,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
       validBallots: validBallotsCount,
       invalidBallots: invalidBallotsCount
     };
-  }, [candidates, votes]);
+  }, [candidates, votes, candidatesToElect, ballotCount]);
   
   const winners = useMemo(() => results.filter(r => r.isWinner), [results]);
 
@@ -60,7 +75,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
     votes.forEach((ballot, index) => {
         const row = [
             `Phiếu ${index + 1}`,
-            ...candidates.map(candidate => ballot.includes(candidate) ? 'X' : '')
+            ...candidates.map(candidate => (ballot || []).includes(candidate) ? 'X' : '')
         ];
         csvContent += row.join(',') + '\n';
     });
@@ -106,13 +121,20 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
           Tổng số lượt bầu đã được ghi nhận: <span className="font-bold text-white">{totalVotes}</span>.
         </p>
 
-        {winners.length > 0 && (
+        {winners.length > 0 ? (
           <div className="my-6 p-4 bg-green-900/50 border-l-4 border-green-500 rounded-r-lg shadow-md text-center">
             <h4 className="text-lg font-bold text-green-300">🎉 ỨNG VIÊN TRÚNG CỬ 🎉</h4>
             {winners.map(winner => (
               <p key={winner.name} className="text-2xl font-semibold text-white animate-pulse">{winner.name}</p>
             ))}
           </div>
+        ) : (
+          validBallots > 0 && (
+            <div className="my-6 p-4 bg-yellow-900/50 border-l-4 border-yellow-500 rounded-r-lg text-center">
+                <h4 className="text-lg font-semibold text-yellow-300">Chưa có ứng viên trúng cử</h4>
+                <p className="text-yellow-400 mt-1">Không có ứng viên nào trong nhóm dẫn đầu đạt trên 50% tổng số phiếu đã thiết lập.</p>
+            </div>
+          )
         )}
 
         <div className="overflow-x-auto">
@@ -138,6 +160,12 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview }
       </div>
       
       <div className="mt-8 text-center flex flex-col md:flex-row justify-center items-center gap-4">
+        <button
+          onClick={onNewPoll}
+          className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"
+        >
+          Tạo Kiểm Phiếu Mới
+        </button>
         <button
           onClick={onReview}
           className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"

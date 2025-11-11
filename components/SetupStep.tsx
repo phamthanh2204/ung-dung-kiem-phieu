@@ -1,23 +1,32 @@
-
 import React, { useState } from 'react';
-import { UsersIcon, ClipboardDocumentListIcon } from './icons';
+import { UsersIcon, ClipboardDocumentListIcon, CheckCircleIcon } from './icons';
 
 interface SetupStepProps {
-  onStart: (candidates: string[], ballotCount: number) => void;
+  onStart: (candidates: string[], ballotCount: number, candidatesToElect: number) => void;
 }
 
 const SetupStep: React.FC<SetupStepProps> = ({ onStart }) => {
   const [candidatesInput, setCandidatesInput] = useState('');
+  const [candidatesToElectCountInput, setCandidatesToElectCountInput] = useState('');
   const [ballotCountInput, setBallotCountInput] = useState('');
   const [error, setError] = useState('');
 
   const handleStart = () => {
     const candidates = candidatesInput.split(',').map(c => c.trim()).filter(c => c.length > 0);
+    const candidatesToElect = parseInt(candidatesToElectCountInput, 10);
     const ballotCount = parseInt(ballotCountInput, 10);
 
-    if (candidates.length < 2) {
-      setError('Vui lòng nhập ít nhất 2 ứng viên, phân tách bằng dấu phẩy.');
+    if (candidates.length < 1) {
+      setError('Vui lòng nhập ít nhất 1 ứng viên.');
       return;
+    }
+    if (isNaN(candidatesToElect) || candidatesToElect <= 0) {
+        setError('Vui lòng nhập số lượng ứng viên cần bầu là một số dương.');
+        return;
+    }
+    if (candidatesToElect > candidates.length) {
+        setError('Số lượng ứng viên cần bầu không được lớn hơn tổng số ứng viên.');
+        return;
     }
     if (isNaN(ballotCount) || ballotCount <= 0) {
       setError('Vui lòng nhập số phiếu bầu là một số dương.');
@@ -25,7 +34,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onStart }) => {
     }
 
     setError('');
-    onStart(candidates, ballotCount);
+    onStart(candidates, ballotCount, candidatesToElect);
   };
 
   return (
@@ -49,9 +58,25 @@ const SetupStep: React.FC<SetupStepProps> = ({ onStart }) => {
         </div>
 
         <div>
+          <label htmlFor="candidates-to-elect" className="flex items-center text-lg font-semibold mb-2 text-gray-300">
+             <CheckCircleIcon className="w-6 h-6 mr-2 text-green-400" />
+             1.2: Nhập số lượng ứng viên cần bầu
+          </label>
+          <input
+            id="candidates-to-elect"
+            type="number"
+            value={candidatesToElectCountInput}
+            onChange={(e) => setCandidatesToElectCountInput(e.target.value)}
+            placeholder="Số lượng lựa chọn tối đa trên mỗi phiếu"
+            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 text-white"
+            min="1"
+          />
+        </div>
+
+        <div>
           <label htmlFor="ballot-count" className="flex items-center text-lg font-semibold mb-2 text-gray-300">
              <ClipboardDocumentListIcon className="w-6 h-6 mr-2 text-green-400" />
-            1.2: Tổng số phiếu bầu
+            1.3: Tổng số phiếu bầu
           </label>
           <input
             id="ballot-count"

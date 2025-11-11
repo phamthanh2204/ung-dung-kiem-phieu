@@ -9,11 +9,13 @@ const App: React.FC = () => {
   const [step, setStep] = useState<Step>('setup');
   const [candidates, setCandidates] = useState<string[]>([]);
   const [ballotCount, setBallotCount] = useState<number>(0);
+  const [candidatesToElect, setCandidatesToElect] = useState<number>(0);
   const [votes, setVotes] = useState<string[][]>([]);
 
-  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number) => {
+  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number) => {
     setCandidates(newCandidates);
     setBallotCount(newBallotCount);
+    setCandidatesToElect(newCandidatesToElect);
     setVotes(Array(newBallotCount).fill([])); // Initialize each ballot with an empty array
     setStep('voting');
   }, []);
@@ -21,21 +23,23 @@ const App: React.FC = () => {
   const handleVote = useCallback((ballotIndex: number, candidateName: string) => {
     setVotes(prevVotes => {
       const newVotes = [...prevVotes];
-      const ballot = [...newVotes[ballotIndex]]; // Get a copy of the specific ballot's votes
+      const ballot = [...(newVotes[ballotIndex] || [])];
       const candidateIndex = ballot.indexOf(candidateName);
 
       if (candidateIndex > -1) {
         // Candidate is already selected, so remove them (deselect)
         ballot.splice(candidateIndex, 1);
       } else {
-        // Candidate is not selected, so add them
-        ballot.push(candidateName);
+        // Candidate is not selected, add them only if the limit is not reached
+        if (ballot.length < candidatesToElect) {
+          ballot.push(candidateName);
+        }
       }
       
       newVotes[ballotIndex] = ballot; // Update the ballot in the main votes array
       return newVotes;
     });
-  }, []);
+  }, [candidatesToElect]);
 
   const handleFinishVoting = useCallback(() => {
     setStep('results');
@@ -43,6 +47,15 @@ const App: React.FC = () => {
 
   const handleReviewVoting = useCallback(() => {
     setStep('voting');
+  }, []);
+  
+  const handleGoToSetup = useCallback(() => {
+    setStep('setup');
+    // Optional: Reset state if you want a clean slate when going back
+    // setCandidates([]);
+    // setBallotCount(0);
+    // setCandidatesToElect(0);
+    // setVotes([]);
   }, []);
 
   const renderStep = () => {
@@ -56,12 +69,17 @@ const App: React.FC = () => {
                   votes={votes}
                   onVote={handleVote}
                   onFinish={handleFinishVoting}
+                  candidatesToElect={candidatesToElect}
+                  onBackToSetup={handleGoToSetup}
                 />;
       case 'results':
         return <ResultsStep 
                   candidates={candidates} 
                   votes={votes}
                   onReview={handleReviewVoting}
+                  candidatesToElect={candidatesToElect}
+                  ballotCount={ballotCount}
+                  onNewPoll={handleGoToSetup}
                 />;
       default:
         return null;
