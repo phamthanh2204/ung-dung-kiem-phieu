@@ -17,7 +17,7 @@ const VotingStep: React.FC<VotingStepProps> = ({ candidates, ballotCount, votes,
       <h2 className="text-2xl font-bold text-green-400 mb-6 text-center">Bước 2: Bỏ phiếu</h2>
       <p className="text-center text-gray-400 mb-6">
         Nhấp vào ô tương ứng để bỏ phiếu. Mỗi hàng là một lá phiếu.
-        <br/>Bạn có thể chọn tối đa <span className="font-bold text-white">{candidatesToElect}</span> ứng viên cho mỗi phiếu.
+        <br/>Bạn phải chọn đúng <span className="font-bold text-white">{candidatesToElect}</span> ứng viên để phiếu bầu hợp lệ.
       </p>
       
       <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-xl">

@@ -76,7 +76,7 @@ const SetupStep: React.FC<SetupStepProps> = ({ onStart }) => {
         <div>
           <label htmlFor="ballot-count" className="flex items-center text-lg font-semibold mb-2 text-gray-300">
              <ClipboardDocumentListIcon className="w-6 h-6 mr-2 text-green-400" />
-            1.3: Tổng số phiếu bầu
+            1.3: Tổng số phiếu bầu phát ra
           </label>
           <input
             id="ballot-count"

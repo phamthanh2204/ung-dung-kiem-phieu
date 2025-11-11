@@ -22,15 +22,16 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
     let validBallotsCount = 0;
 
     votes.forEach(ballot => {
-      if (ballot && ballot.length > 0) {
+      // A ballot is considered valid ONLY if the number of selections equals the required number.
+      if (ballot && ballot.length === candidatesToElect) {
         validBallotsCount++;
+        ballot.forEach(candidateName => {
+          if (voteCounts.hasOwnProperty(candidateName)) {
+            voteCounts[candidateName]++;
+            talliedVotes++;
+          }
+        });
       }
-      (ballot || []).forEach(candidateName => {
-        if (voteCounts.hasOwnProperty(candidateName)) {
-          voteCounts[candidateName]++;
-          talliedVotes++;
-        }
-      });
     });
 
     const invalidBallotsCount = totalBallotsCount - validBallotsCount;
@@ -120,9 +121,13 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
                 <p className="text-2xl font-bold text-red-400">{invalidBallots}</p>
             </div>
         </div>
+
+        <div className="text-center text-sm text-gray-500 mb-6">
+          <p>Ghi chú: Phiếu hợp lệ là phiếu đã chọn đúng <strong className="text-gray-400">{candidatesToElect}</strong> ứng viên. Các phiếu khác bị coi là không hợp lệ.</p>
+        </div>
         
         <p className="text-gray-400 mb-4 text-center">
-          Tổng số lượt bầu đã được ghi nhận: <span className="font-bold text-white">{totalVotes}</span>.
+          Tổng số lượt bầu hợp lệ đã được ghi nhận: <span className="font-bold text-white">{totalVotes}</span>.
         </p>
 
         {winners.length > 0 ? (
