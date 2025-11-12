@@ -8,3 +8,9 @@ export interface ResultData {
 }
 
 export type CalculationMode = 'totalBallots' | 'validBallots';
+
+export interface InvalidBallotCriteria {
+  moreThanRequired: boolean;
+  lessThanRequired: boolean;
+  blank: boolean;
+}

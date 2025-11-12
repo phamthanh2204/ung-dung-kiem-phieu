@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ResultData, CalculationMode } from '../types';
+import { ResultData, CalculationMode, InvalidBallotCriteria } from '../types';
 import { ChartBarIcon, ArrowDownTrayIcon, PrinterIcon } from './icons';
 
 interface ResultsStepProps {
@@ -11,6 +11,7 @@ interface ResultsStepProps {
   onNewPoll: () => void;
   calculationMode: CalculationMode;
   onCalculationModeChange: (mode: CalculationMode) => void;
+  invalidBallotCriteria: InvalidBallotCriteria;
 }
 
 const ResultsStep: React.FC<ResultsStepProps> = ({ 
@@ -22,9 +23,10 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
   onNewPoll,
   calculationMode,
   onCalculationModeChange,
+  invalidBallotCriteria,
 }) => {
 
-  const { results, totalVotes, totalBallots, validBallots, invalidBallots } = useMemo(() => {
+  const { results, totalVotes, totalBallots, validBallots, invalidBallots, validityNote } = useMemo(() => {
     const voteCounts: { [key: string]: number } = {};
     candidates.forEach(c => voteCounts[c] = 0);
 
@@ -32,8 +34,17 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
     const totalBallotsCount = votes.length;
     let validBallotsCount = 0;
 
+    const isBallotInvalid = (ballot: string[], criteria: InvalidBallotCriteria, toElect: number): boolean => {
+        if (!ballot) return true;
+        const selectionCount = ballot.length;
+        if (criteria.moreThanRequired && selectionCount > toElect) return true;
+        if (criteria.lessThanRequired && selectionCount > 0 && selectionCount < toElect) return true;
+        if (criteria.blank && selectionCount === 0) return true;
+        return false;
+    }
+
     votes.forEach(ballot => {
-      if (ballot && ballot.length === candidatesToElect) {
+      if (ballot && !isBallotInvalid(ballot, invalidBallotCriteria, candidatesToElect)) {
         validBallotsCount++;
         ballot.forEach(candidateName => {
           if (voteCounts.hasOwnProperty(candidateName)) {
@@ -67,15 +78,31 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         isWinner: isInTopGroup && meetsThreshold,
       };
     });
+    
+    const invalidReasonParts: string[] = [];
+    if (invalidBallotCriteria.moreThanRequired) invalidReasonParts.push(`chọn nhiều hơn ${candidatesToElect} ứng viên`);
+    if (invalidBallotCriteria.lessThanRequired) invalidReasonParts.push(`chọn ít hơn ${candidatesToElect} ứng viên (nhưng không phải phiếu trắng)`);
+    if (invalidBallotCriteria.blank) invalidReasonParts.push("để trống");
+    
+    let note = 'Phiếu hợp lệ là phiếu không vi phạm bất kỳ quy tắc nào được chọn ở bước thiết lập.';
+    if (invalidReasonParts.length > 0 && invalidReasonParts.length < 3) {
+      note = `Phiếu bị coi là không hợp lệ nếu: ${invalidReasonParts.join('; ')}.`;
+    } else if (invalidReasonParts.length === 0) {
+        note = 'Tất cả các phiếu đều được coi là hợp lệ theo thiết lập.';
+    } else { // All 3 are selected
+        note = `Phiếu hợp lệ là phiếu đã chọn đúng ${candidatesToElect} ứng viên.`
+    }
+
 
     return { 
       results: resultData, 
       totalVotes: talliedVotes, 
       totalBallots: totalBallotsCount,
       validBallots: validBallotsCount,
-      invalidBallots: invalidBallotsCount
+      invalidBallots: invalidBallotsCount,
+      validityNote: note,
     };
-  }, [candidates, votes, candidatesToElect, ballotCount, calculationMode]);
+  }, [candidates, votes, candidatesToElect, ballotCount, calculationMode, invalidBallotCriteria]);
   
   const winners = useMemo(() => results.filter(r => r.isWinner), [results]);
 
@@ -133,7 +160,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         </div>
 
         <div className="text-center text-sm text-gray-500 mb-6">
-          <p>Ghi chú: Phiếu hợp lệ là phiếu đã chọn đúng <strong className="text-gray-400">{candidatesToElect}</strong> ứng viên. Các phiếu khác bị coi là không hợp lệ.</p>
+          <p>{validityNote}</p>
         </div>
         
         <div className="mb-6 flex justify-center items-center gap-4 bg-gray-900/50 p-3 rounded-lg no-print">

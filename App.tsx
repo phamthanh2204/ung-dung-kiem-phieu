@@ -3,7 +3,7 @@ import Header from './components/Header';
 import SetupStep from './components/SetupStep';
 import VotingStep from './components/VotingStep';
 import ResultsStep from './components/ResultsStep';
-import { Step, CalculationMode } from './types';
+import { Step, CalculationMode, InvalidBallotCriteria } from './types';
 
 const LOCAL_STORAGE_KEY = 'electionAppState';
 
@@ -16,7 +16,14 @@ interface ElectionState {
   hasVisitedVoting: boolean;
   prefillVotes: boolean;
   calculationMode: CalculationMode;
+  invalidBallotCriteria: InvalidBallotCriteria;
 }
+
+const defaultInvalidBallotCriteria: InvalidBallotCriteria = {
+  moreThanRequired: true,
+  lessThanRequired: true,
+  blank: true,
+};
 
 const loadState = (): ElectionState | undefined => {
   try {
@@ -26,6 +33,10 @@ const loadState = (): ElectionState | undefined => {
     }
     const savedState = JSON.parse(serializedState);
     if (savedState.step && Array.isArray(savedState.candidates)) {
+      // Provide default for invalidBallotCriteria if it doesn't exist in saved state
+      if (!savedState.invalidBallotCriteria) {
+        savedState.invalidBallotCriteria = defaultInvalidBallotCriteria;
+      }
       return savedState;
     }
     return undefined;
@@ -45,6 +56,7 @@ const App: React.FC = () => {
     hasVisitedVoting: false,
     prefillVotes: false,
     calculationMode: 'totalBallots',
+    invalidBallotCriteria: defaultInvalidBallotCriteria,
   });
 
   // Fix: Cast the step from initialState to the Step type. This is necessary because data from localStorage is treated as a generic string.
@@ -57,9 +69,11 @@ const App: React.FC = () => {
   const [prefillVotes, setPrefillVotes] = useState<boolean>(initialState.prefillVotes);
   // Fix: Cast calculationMode from initialState to the CalculationMode type. This ensures type safety for data loaded from localStorage.
   const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'totalBallots') as CalculationMode);
+  const [invalidBallotCriteria, setInvalidBallotCriteria] = useState<InvalidBallotCriteria>(initialState.invalidBallotCriteria || defaultInvalidBallotCriteria);
+
 
   useEffect(() => {
-    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode };
+    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria };
     if (step !== 'setup' || candidates.length > 0 || ballotCount > 0) {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
@@ -67,13 +81,14 @@ const App: React.FC = () => {
         console.error("Lỗi khi lưu trạng thái vào localStorage:", error);
       }
     }
-  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode]);
+  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria]);
 
-  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillVotes: boolean) => {
+  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillVotes: boolean, newInvalidBallotCriteria: InvalidBallotCriteria) => {
     setCandidates(newCandidates);
     setBallotCount(newBallotCount);
     setCandidatesToElect(newCandidatesToElect);
     setPrefillVotes(newPrefillVotes);
+    setInvalidBallotCriteria(newInvalidBallotCriteria);
     setHasVisitedVoting(true);
 
     if (newPrefillVotes) {
@@ -121,6 +136,7 @@ const App: React.FC = () => {
     setHasVisitedVoting(false);
     setPrefillVotes(false);
     setCalculationMode('totalBallots');
+    setInvalidBallotCriteria(defaultInvalidBallotCriteria);
     try {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     } catch (error)
@@ -148,6 +164,7 @@ const App: React.FC = () => {
                   hasVisitedVoting={hasVisitedVoting}
                   onContinue={handleContinueVoting}
                   initialPrefillVotes={prefillVotes}
+                  initialInvalidBallotCriteria={invalidBallotCriteria}
                />;
       case 'voting':
         return <VotingStep 
@@ -169,6 +186,7 @@ const App: React.FC = () => {
                   onNewPoll={handleNewPoll}
                   calculationMode={calculationMode}
                   onCalculationModeChange={setCalculationMode}
+                  invalidBallotCriteria={invalidBallotCriteria}
                 />;
       default:
         return null;

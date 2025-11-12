@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { UsersIcon, ClipboardDocumentListIcon, CheckCircleIcon } from './icons';
+import { InvalidBallotCriteria } from '../types';
 
 interface SetupStepProps {
-  onStart: (candidates: string[], ballotCount: number, candidatesToElect: number, prefillVotes: boolean) => void;
+  onStart: (candidates: string[], ballotCount: number, candidatesToElect: number, prefillVotes: boolean, invalidBallotCriteria: InvalidBallotCriteria) => void;
   initialCandidates: string[];
   initialBallotCount: number;
   initialCandidatesToElect: number;
   hasVisitedVoting: boolean;
   onContinue: () => void;
   initialPrefillVotes: boolean;
+  initialInvalidBallotCriteria: InvalidBallotCriteria;
 }
 
 const SetupStep: React.FC<SetupStepProps> = ({ 
@@ -19,12 +21,18 @@ const SetupStep: React.FC<SetupStepProps> = ({
   hasVisitedVoting,
   onContinue,
   initialPrefillVotes,
+  initialInvalidBallotCriteria,
 }) => {
   const [candidatesInput, setCandidatesInput] = useState(initialCandidates.join(', '));
   const [candidatesToElectCountInput, setCandidatesToElectCountInput] = useState(initialCandidatesToElect > 0 ? String(initialCandidatesToElect) : '');
   const [ballotCountInput, setBallotCountInput] = useState(initialBallotCount > 0 ? String(initialBallotCount) : '');
   const [prefillVotes, setPrefillVotes] = useState(initialPrefillVotes);
+  const [invalidBallotCriteria, setInvalidBallotCriteria] = useState(initialInvalidBallotCriteria);
   const [error, setError] = useState('');
+
+  const handleCriteriaChange = (key: keyof InvalidBallotCriteria, value: boolean) => {
+    setInvalidBallotCriteria(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleStart = () => {
     const candidates = candidatesInput.split(',').map(c => c.trim()).filter(c => c.length > 0);
@@ -49,7 +57,7 @@ const SetupStep: React.FC<SetupStepProps> = ({
     }
 
     setError('');
-    onStart(candidates, ballotCount, candidatesToElect, prefillVotes);
+    onStart(candidates, ballotCount, candidatesToElect, prefillVotes, invalidBallotCriteria);
   };
   
   const hasRestoredData = initialCandidates.length > 0 || initialBallotCount > 0 || initialCandidatesToElect > 0;
@@ -112,8 +120,52 @@ const SetupStep: React.FC<SetupStepProps> = ({
             min="1"
           />
         </div>
+
+        <div className="border-t border-gray-700 pt-6 space-y-4">
+            <h3 className="flex items-center text-lg font-semibold text-gray-300">
+                1.4: Trường hợp phiếu không hợp lệ
+            </h3>
+            <p className="text-sm text-gray-400">Chọn các trường hợp dưới đây sẽ bị tính là phiếu không hợp lệ. Phiếu hợp lệ là phiếu không vi phạm bất kỳ quy tắc nào được chọn.</p>
+            
+            <div className="space-y-3 pl-2">
+                <label className="flex items-start text-gray-300 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={invalidBallotCriteria.moreThanRequired}
+                        onChange={(e) => handleCriteriaChange('moreThanRequired', e.target.checked)}
+                        className="w-5 h-5 mt-1 bg-gray-700 border-gray-600 rounded text-green-500 focus:ring-green-500 focus:ring-offset-gray-800"
+                    />
+                    <span className="ml-3 text-sm">
+                        Phiếu bầu tích chọn <span className="font-semibold">nhiều hơn</span> số lượng ứng viên cần bầu.
+                         <span className="block text-xs text-gray-500 mt-1">Lưu ý: Chức năng bỏ phiếu hiện tại không cho phép chọn quá số lượng.</span>
+                    </span>
+                </label>
+                 <label className="flex items-start text-gray-300 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={invalidBallotCriteria.lessThanRequired}
+                        onChange={(e) => handleCriteriaChange('lessThanRequired', e.target.checked)}
+                        className="w-5 h-5 mt-1 bg-gray-700 border-gray-600 rounded text-green-500 focus:ring-green-500 focus:ring-offset-gray-800"
+                    />
+                    <span className="ml-3 text-sm">
+                        Phiếu bầu tích chọn <span className="font-semibold">ít hơn</span> số lượng ứng viên cần bầu.
+                    </span>
+                </label>
+                 <label className="flex items-start text-gray-300 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={invalidBallotCriteria.blank}
+                        onChange={(e) => handleCriteriaChange('blank', e.target.checked)}
+                        className="w-5 h-5 mt-1 bg-gray-700 border-gray-600 rounded text-green-500 focus:ring-green-500 focus:ring-offset-gray-800"
+                    />
+                    <span className="ml-3 text-sm">
+                        Phiếu bầu <span className="font-semibold">để trống</span> (không chọn ứng viên nào).
+                    </span>
+                </label>
+            </div>
+        </div>
         
-        <div className="pt-2">
+        <div className="border-t border-gray-700 pt-6">
             <label htmlFor="prefill-votes" className="flex items-start text-gray-300 cursor-pointer">
                 <input
                     id="prefill-votes"
@@ -130,7 +182,6 @@ const SetupStep: React.FC<SetupStepProps> = ({
                 </span>
             </label>
         </div>
-
       </div>
       
       {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
