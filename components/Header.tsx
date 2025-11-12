@@ -15,9 +15,11 @@ const Header: React.FC<HeaderProps> = ({ className = '' }) => {
             className="h-16 w-auto"
           />
         </div>
-        <h1 className="text-xl md:text-3xl font-bold text-white tracking-wider text-right">
-         PHẦN MỀM KIỂM PHIẾU BẦU CỬ 2025
-        </h1>
+        <div className="flex items-center">
+            <h1 className="text-xl md:text-3xl font-bold text-white tracking-wider text-right">
+             PHẦN MỀM KIỂM PHIẾU BẦU CỬ 2025
+            </h1>
+        </div>
       </div>
     </header>
   );

@@ -3,6 +3,8 @@ import Header from './components/Header';
 import SetupStep from './components/SetupStep';
 import VotingStep from './components/VotingStep';
 import ResultsStep from './components/ResultsStep';
+import ContactModal from './components/ContactModal';
+import { BookOpenIcon } from './components/icons';
 import { Step, CalculationMode, InvalidBallotCriteria } from './types';
 
 const LOCAL_STORAGE_KEY = 'electionAppState';
@@ -70,6 +72,8 @@ const App: React.FC = () => {
   // Fix: Cast calculationMode from initialState to the CalculationMode type. This ensures type safety for data loaded from localStorage.
   const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'totalBallots') as CalculationMode);
   const [invalidBallotCriteria, setInvalidBallotCriteria] = useState<InvalidBallotCriteria>(initialState.invalidBallotCriteria || defaultInvalidBallotCriteria);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const instructionsUrl = 'https://docs.google.com/spreadsheets/d/18Hn0APJ-lNPxTXN5vn3f9IyLF4rbOZOnpBO38W_vzNQ/edit?usp=sharing';
 
 
   useEffect(() => {
@@ -194,14 +198,34 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 font-sans">
+    <div className="min-h-screen bg-gray-900 font-sans flex flex-col">
       <Header className="no-print" />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-grow">
         {renderStep()}
       </main>
       <footer className="no-print text-center py-4 text-gray-500 text-sm">
-        <p>Phát triển bởi ThanhPV</p>
+        <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p>Phát triển bởi ThanhPV</p>
+            <div className="flex items-center justify-center flex-wrap gap-4">
+               <a
+                  href={instructionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-600 text-white hover:bg-gray-700 font-bold py-2 px-4 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out flex items-center gap-2"
+                >
+                  <BookOpenIcon className="w-5 h-5" />
+                  Hướng dẫn
+              </a>
+              <button
+                  onClick={() => setIsContactModalOpen(true)}
+                  className="bg-sky-500 text-white hover:bg-sky-600 font-bold py-2 px-4 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out animate-pulse"
+              >
+                  Liên hệ hỗ trợ
+              </button>
+            </div>
+        </div>
       </footer>
+      <ContactModal isOpen={isContactModalOpen} onClose={() => setIsContactModalOpen(false)} />
     </div>
   );
 };
