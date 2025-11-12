@@ -6,3 +6,5 @@ export interface ResultData {
   percentage: string;
   isWinner?: boolean;
 }
+
+export type CalculationMode = 'totalBallots' | 'validBallots';

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ResultData } from '../types';
+import { ResultData, CalculationMode } from '../types';
 import { ChartBarIcon, ArrowDownTrayIcon, PrinterIcon } from './icons';
 
 interface ResultsStepProps {
@@ -9,9 +9,20 @@ interface ResultsStepProps {
   candidatesToElect: number;
   ballotCount: number;
   onNewPoll: () => void;
+  calculationMode: CalculationMode;
+  onCalculationModeChange: (mode: CalculationMode) => void;
 }
 
-const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, candidatesToElect, ballotCount, onNewPoll }) => {
+const ResultsStep: React.FC<ResultsStepProps> = ({ 
+  candidates, 
+  votes, 
+  onReview, 
+  candidatesToElect, 
+  ballotCount, 
+  onNewPoll,
+  calculationMode,
+  onCalculationModeChange,
+}) => {
 
   const { results, totalVotes, totalBallots, validBallots, invalidBallots } = useMemo(() => {
     const voteCounts: { [key: string]: number } = {};
@@ -22,7 +33,6 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
     let validBallotsCount = 0;
 
     votes.forEach(ballot => {
-      // A ballot is considered valid ONLY if the number of selections equals the required number.
       if (ballot && ballot.length === candidatesToElect) {
         validBallotsCount++;
         ballot.forEach(candidateName => {
@@ -36,18 +46,18 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
 
     const invalidBallotsCount = totalBallotsCount - validBallotsCount;
 
-    // Sort all candidates by vote count
     const sortedCandidates = candidates
       .map(c => ({ name: c, votes: voteCounts[c] }))
       .sort((a, b) => b.votes - a.votes);
 
-    // Identify the names of the top N candidates
     const topCandidateNames = sortedCandidates.slice(0, candidatesToElect).map(c => c.name);
     
     const resultData: ResultData[] = sortedCandidates.map(candidate => {
-      const percentageValue = ballotCount > 0 ? (candidate.votes / ballotCount) * 100 : 0;
+      const denominator = calculationMode === 'validBallots' ? (validBallotsCount > 0 ? validBallotsCount : 1) : (ballotCount > 0 ? ballotCount : 1);
+      const percentageValue = (candidate.votes / denominator) * 100;
       
-      const meetsThreshold = candidate.votes > (ballotCount / 2);
+      const thresholdDenominator = calculationMode === 'validBallots' ? validBallotsCount : ballotCount;
+      const meetsThreshold = thresholdDenominator > 0 && candidate.votes > (thresholdDenominator / 2);
       const isInTopGroup = topCandidateNames.includes(candidate.name);
 
       return {
@@ -65,7 +75,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
       validBallots: validBallotsCount,
       invalidBallots: invalidBallotsCount
     };
-  }, [candidates, votes, candidatesToElect, ballotCount]);
+  }, [candidates, votes, candidatesToElect, ballotCount, calculationMode]);
   
   const winners = useMemo(() => results.filter(r => r.isWinner), [results]);
 
@@ -126,9 +136,23 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
           <p>Ghi chú: Phiếu hợp lệ là phiếu đã chọn đúng <strong className="text-gray-400">{candidatesToElect}</strong> ứng viên. Các phiếu khác bị coi là không hợp lệ.</p>
         </div>
         
-        <p className="text-gray-400 mb-4 text-center">
-          Tổng số lượt bầu hợp lệ đã được ghi nhận: <span className="font-bold text-white">{totalVotes}</span>.
-        </p>
+        <div className="mb-6 flex justify-center items-center gap-4 bg-gray-900/50 p-3 rounded-lg no-print">
+            <span className="text-sm font-medium text-gray-300">Tính tỷ lệ % trên:</span>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => onCalculationModeChange('totalBallots')}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${calculationMode === 'totalBallots' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                >
+                    Tổng phiếu phát ra
+                </button>
+                <button 
+                    onClick={() => onCalculationModeChange('validBallots')}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${calculationMode === 'validBallots' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                >
+                    Tổng phiếu hợp lệ
+                </button>
+            </div>
+        </div>
 
         {winners.length > 0 ? (
           <div className="my-6 p-4 bg-green-900/50 border-l-4 border-green-500 rounded-r-lg shadow-md text-center">
@@ -136,12 +160,15 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
             {winners.map(winner => (
               <p key={winner.name} className="text-2xl font-semibold text-white animate-pulse">{winner.name}</p>
             ))}
+            <p className="text-xs text-green-400 mt-2">
+              (Trúng cử khi nằm trong nhóm dẫn đầu VÀ có số phiếu bầu &gt; 50% trên tổng số phiếu {calculationMode === 'validBallots' ? 'hợp lệ' : 'đã thiết lập'})
+            </p>
           </div>
         ) : (
           validBallots > 0 && (
             <div className="my-6 p-4 bg-yellow-900/50 border-l-4 border-yellow-500 rounded-r-lg text-center">
                 <h4 className="text-lg font-semibold text-yellow-300">Chưa có ứng viên trúng cử</h4>
-                <p className="text-yellow-400 mt-1">Không có ứng viên nào trong nhóm dẫn đầu đạt trên 50% tổng số phiếu đã thiết lập.</p>
+                <p className="text-yellow-400 mt-1">Không có ứng viên nào trong nhóm dẫn đầu đạt trên 50% tổng số phiếu {calculationMode === 'validBallots' ? 'hợp lệ' : 'đã thiết lập'}.</p>
             </div>
           )
         )}
@@ -152,7 +179,9 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ candidates, votes, onReview, 
               <tr>
                 <th scope="col" className="px-6 py-3">Ứng viên</th>
                 <th scope="col" className="px-6 py-3">Số phiếu</th>
-                <th scope="col" className="px-6 py-3">Tỷ lệ % / Tổng phiếu</th>
+                <th scope="col" className="px-6 py-3">
+                  Tỷ lệ % / {calculationMode === 'validBallots' ? 'Phiếu hợp lệ' : 'Tổng phiếu'}
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -1,22 +1,87 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import SetupStep from './components/SetupStep';
 import VotingStep from './components/VotingStep';
 import ResultsStep from './components/ResultsStep';
-import { Step } from './types';
+import { Step, CalculationMode } from './types';
+
+const LOCAL_STORAGE_KEY = 'electionAppState';
+
+interface ElectionState {
+  step: Step;
+  candidates: string[];
+  ballotCount: number;
+  candidatesToElect: number;
+  votes: string[][];
+  hasVisitedVoting: boolean;
+  prefillVotes: boolean;
+  calculationMode: CalculationMode;
+}
+
+const loadState = (): ElectionState | undefined => {
+  try {
+    const serializedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (serializedState === null) {
+      return undefined;
+    }
+    const savedState = JSON.parse(serializedState);
+    if (savedState.step && Array.isArray(savedState.candidates)) {
+      return savedState;
+    }
+    return undefined;
+  } catch (error) {
+    console.error("Lỗi khi tải trạng thái từ localStorage:", error);
+    return undefined;
+  }
+};
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<Step>('setup');
-  const [candidates, setCandidates] = useState<string[]>([]);
-  const [ballotCount, setBallotCount] = useState<number>(0);
-  const [candidatesToElect, setCandidatesToElect] = useState<number>(0);
-  const [votes, setVotes] = useState<string[][]>([]);
+  const [initialState] = useState(loadState() || {
+    step: 'setup',
+    candidates: [],
+    ballotCount: 0,
+    candidatesToElect: 0,
+    votes: [],
+    hasVisitedVoting: false,
+    prefillVotes: false,
+    calculationMode: 'totalBallots',
+  });
 
-  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number) => {
+  // Fix: Cast the step from initialState to the Step type. This is necessary because data from localStorage is treated as a generic string.
+  const [step, setStep] = useState<Step>(initialState.step as Step);
+  const [candidates, setCandidates] = useState<string[]>(initialState.candidates);
+  const [ballotCount, setBallotCount] = useState<number>(initialState.ballotCount);
+  const [candidatesToElect, setCandidatesToElect] = useState<number>(initialState.candidatesToElect);
+  const [votes, setVotes] = useState<string[][]>(initialState.votes);
+  const [hasVisitedVoting, setHasVisitedVoting] = useState<boolean>(initialState.hasVisitedVoting);
+  const [prefillVotes, setPrefillVotes] = useState<boolean>(initialState.prefillVotes);
+  // Fix: Cast calculationMode from initialState to the CalculationMode type. This ensures type safety for data loaded from localStorage.
+  const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'totalBallots') as CalculationMode);
+
+  useEffect(() => {
+    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode };
+    if (step !== 'setup' || candidates.length > 0 || ballotCount > 0) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+      } catch (error) {
+        console.error("Lỗi khi lưu trạng thái vào localStorage:", error);
+      }
+    }
+  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode]);
+
+  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillVotes: boolean) => {
     setCandidates(newCandidates);
     setBallotCount(newBallotCount);
     setCandidatesToElect(newCandidatesToElect);
-    setVotes(Array(newBallotCount).fill([])); // Initialize each ballot with an empty array
+    setPrefillVotes(newPrefillVotes);
+    setHasVisitedVoting(true);
+
+    if (newPrefillVotes) {
+      const prefilledVotes = Array.from({ length: newBallotCount }, () => [...newCandidates]);
+      setVotes(prefilledVotes);
+    } else {
+      setVotes(Array(newBallotCount).fill([]));
+    }
     setStep('voting');
   }, []);
 
@@ -27,16 +92,14 @@ const App: React.FC = () => {
       const candidateIndex = ballot.indexOf(candidateName);
 
       if (candidateIndex > -1) {
-        // Candidate is already selected, so remove them (deselect)
         ballot.splice(candidateIndex, 1);
       } else {
-        // Candidate is not selected, add them only if the limit is not reached
         if (ballot.length < candidatesToElect) {
           ballot.push(candidateName);
         }
       }
       
-      newVotes[ballotIndex] = ballot; // Update the ballot in the main votes array
+      newVotes[ballotIndex] = ballot;
       return newVotes;
     });
   }, [candidatesToElect]);
@@ -49,19 +112,43 @@ const App: React.FC = () => {
     setStep('voting');
   }, []);
   
-  const handleGoToSetup = useCallback(() => {
+  const handleNewPoll = useCallback(() => {
     setStep('setup');
-    // Optional: Reset state if you want a clean slate when going back
-    // setCandidates([]);
-    // setBallotCount(0);
-    // setCandidatesToElect(0);
-    // setVotes([]);
+    setCandidates([]);
+    setBallotCount(0);
+    setCandidatesToElect(0);
+    setVotes([]);
+    setHasVisitedVoting(false);
+    setPrefillVotes(false);
+    setCalculationMode('totalBallots');
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (error)
+      {
+      console.error("Lỗi khi xóa trạng thái khỏi localStorage:", error);
+    }
+  }, []);
+
+  const handleBackToSetup = useCallback(() => {
+    setStep('setup');
+  }, []);
+
+  const handleContinueVoting = useCallback(() => {
+    setStep('voting');
   }, []);
 
   const renderStep = () => {
     switch (step) {
       case 'setup':
-        return <SetupStep onStart={handleStartVoting} />;
+        return <SetupStep 
+                  onStart={handleStartVoting} 
+                  initialCandidates={candidates}
+                  initialBallotCount={ballotCount}
+                  initialCandidatesToElect={candidatesToElect}
+                  hasVisitedVoting={hasVisitedVoting}
+                  onContinue={handleContinueVoting}
+                  initialPrefillVotes={prefillVotes}
+               />;
       case 'voting':
         return <VotingStep 
                   candidates={candidates} 
@@ -70,7 +157,7 @@ const App: React.FC = () => {
                   onVote={handleVote}
                   onFinish={handleFinishVoting}
                   candidatesToElect={candidatesToElect}
-                  onBackToSetup={handleGoToSetup}
+                  onBackToSetup={handleBackToSetup}
                 />;
       case 'results':
         return <ResultsStep 
@@ -79,7 +166,9 @@ const App: React.FC = () => {
                   onReview={handleReviewVoting}
                   candidatesToElect={candidatesToElect}
                   ballotCount={ballotCount}
-                  onNewPoll={handleGoToSetup}
+                  onNewPoll={handleNewPoll}
+                  calculationMode={calculationMode}
+                  onCalculationModeChange={setCalculationMode}
                 />;
       default:
         return null;
