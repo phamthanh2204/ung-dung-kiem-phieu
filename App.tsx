@@ -16,7 +16,7 @@ interface ElectionState {
   candidatesToElect: number;
   votes: string[][];
   hasVisitedVoting: boolean;
-  prefillVotes: boolean;
+  prefillCount: number;
   calculationMode: CalculationMode;
   invalidBallotCriteria: InvalidBallotCriteria;
   electionResults: ElectionResults | null;
@@ -43,6 +43,9 @@ const loadState = (): ElectionState | undefined => {
        if (typeof savedState.electionResults === 'undefined') {
           savedState.electionResults = null;
       }
+      if (typeof savedState.prefillCount === 'undefined') {
+          savedState.prefillCount = 0;
+      }
       return savedState;
     }
     return undefined;
@@ -60,7 +63,7 @@ const App: React.FC = () => {
     candidatesToElect: 0,
     votes: [],
     hasVisitedVoting: false,
-    prefillVotes: false,
+    prefillCount: 0,
     calculationMode: 'validBallots',
     invalidBallotCriteria: defaultInvalidBallotCriteria,
     electionResults: null,
@@ -72,7 +75,7 @@ const App: React.FC = () => {
   const [candidatesToElect, setCandidatesToElect] = useState<number>(initialState.candidatesToElect);
   const [votes, setVotes] = useState<string[][]>(initialState.votes);
   const [hasVisitedVoting, setHasVisitedVoting] = useState<boolean>(initialState.hasVisitedVoting);
-  const [prefillVotes, setPrefillVotes] = useState<boolean>(initialState.prefillVotes);
+  const [prefillCount, setPrefillCount] = useState<number>(initialState.prefillCount);
   const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'validBallots') as CalculationMode);
   const [invalidBallotCriteria, setInvalidBallotCriteria] = useState<InvalidBallotCriteria>(initialState.invalidBallotCriteria || defaultInvalidBallotCriteria);
   const [electionResults, setElectionResults] = useState<ElectionResults | null>(initialState.electionResults);
@@ -81,7 +84,7 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria, electionResults };
+    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillCount, calculationMode, invalidBallotCriteria, electionResults };
     if (step !== 'setup' || candidates.length > 0 || ballotCount > 0) {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
@@ -89,7 +92,7 @@ const App: React.FC = () => {
         console.error("Lỗi khi lưu trạng thái vào localStorage:", error);
       }
     }
-  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria, electionResults]);
+  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillCount, calculationMode, invalidBallotCriteria, electionResults]);
 
   const calculateResults = useCallback((mode: CalculationMode): ElectionResults | null => {
     if (candidates.length === 0) {
@@ -186,20 +189,22 @@ const App: React.FC = () => {
   }, [calculationMode, step, calculateResults]);
 
 
-  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillVotes: boolean, newInvalidBallotCriteria: InvalidBallotCriteria) => {
+  const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillCount: number, newInvalidBallotCriteria: InvalidBallotCriteria) => {
     setCandidates(newCandidates);
     setBallotCount(newBallotCount);
     setCandidatesToElect(newCandidatesToElect);
-    setPrefillVotes(newPrefillVotes);
+    setPrefillCount(newPrefillCount);
     setInvalidBallotCriteria(newInvalidBallotCriteria);
     setHasVisitedVoting(true);
 
-    if (newPrefillVotes) {
-      const prefilledVotes = Array.from({ length: newBallotCount }, () => [...newCandidates]);
-      setVotes(prefilledVotes);
-    } else {
-      setVotes(Array(newBallotCount).fill([]));
-    }
+    const initialVotes = Array.from({ length: newBallotCount }, (_, index) => {
+      if (index < newPrefillCount) {
+        return [...newCandidates];
+      }
+      return [];
+    });
+    setVotes(initialVotes);
+    
     setStep('voting');
   }, []);
 
@@ -241,7 +246,7 @@ const App: React.FC = () => {
     setCandidatesToElect(0);
     setVotes([]);
     setHasVisitedVoting(false);
-    setPrefillVotes(false);
+    setPrefillCount(0);
     setCalculationMode('validBallots');
     setInvalidBallotCriteria(defaultInvalidBallotCriteria);
     setElectionResults(null);
@@ -271,7 +276,7 @@ const App: React.FC = () => {
                   initialCandidatesToElect={candidatesToElect}
                   hasVisitedVoting={hasVisitedVoting}
                   onContinue={handleContinueVoting}
-                  initialPrefillVotes={prefillVotes}
+                  initialPrefillCount={prefillCount}
                   initialInvalidBallotCriteria={invalidBallotCriteria}
                />;
       case 'voting':
