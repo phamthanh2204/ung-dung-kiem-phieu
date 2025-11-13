@@ -129,14 +129,6 @@ const App: React.FC = () => {
     const sortedCandidates = candidates
       .map(c => ({ name: c, votes: voteCounts[c] }))
       .sort((a, b) => b.votes - a.votes);
-
-    let topCandidateNames: string[] = [];
-    if (candidatesToElect > 0 && sortedCandidates.length > 0 && sortedCandidates[0].votes > 0) {
-        const voteThreshold = sortedCandidates[candidatesToElect - 1]?.votes ?? 0;
-        topCandidateNames = sortedCandidates
-            .filter(c => c.votes >= voteThreshold && c.votes > 0)
-            .map(c => c.name);
-    }
     
     const resultData: ResultData[] = sortedCandidates.map(candidate => {
       let denominator: number;
@@ -147,13 +139,13 @@ const App: React.FC = () => {
       }
       const percentageValue = (candidate.votes / denominator) * 100;
       
-      const isInTopGroup = topCandidateNames.includes(candidate.name);
+      const isWinner = percentageValue > 50;
 
       return {
         name: candidate.name,
         votes: candidate.votes,
         percentage: percentageValue.toFixed(2) + '%',
-        isWinner: isInTopGroup,
+        isWinner: isWinner,
       };
     });
     

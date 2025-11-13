@@ -53,30 +53,30 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto printable-area">
-      <h2 className="text-2xl font-bold text-green-400 mb-6 text-center">Bước 3: Kết quả bầu cử</h2>
+      <h2 className="text-2xl font-bold text-green-400 mb-6 text-center print-title">KẾT QUẢ BẦU CỬ</h2>
       
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 mb-8">
-        <h3 className="flex items-center text-xl font-semibold mb-4 text-gray-200">
+        <h3 className="flex items-center text-xl font-semibold mb-4 text-gray-200 no-print">
           <ChartBarIcon className="w-6 h-6 mr-2 text-green-400" />
           3.2: Bảng thống kê
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
-            <div className="bg-gray-700 p-3 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6 print-stats-grid">
+            <div className="bg-gray-700 p-3 rounded-lg print-stats-box">
                 <p className="text-sm text-gray-400">Tổng số phiếu</p>
                 <p className="text-2xl font-bold text-white">{totalBallots}</p>
             </div>
-            <div className="bg-gray-700 p-3 rounded-lg">
+            <div className="bg-gray-700 p-3 rounded-lg print-stats-box">
                 <p className="text-sm text-green-400">Phiếu hợp lệ</p>
                 <p className="text-2xl font-bold text-green-400">{validBallots}</p>
             </div>
-            <div className="bg-gray-700 p-3 rounded-lg">
+            <div className="bg-gray-700 p-3 rounded-lg print-stats-box">
                 <p className="text-sm text-red-400">Phiếu không hợp lệ</p>
                 <p className="text-2xl font-bold text-red-400">{invalidBallots}</p>
             </div>
         </div>
 
-        <div className="text-center text-sm text-gray-500 mb-6">
+        <div className="text-center text-sm text-gray-500 mb-6 print-hide-note">
           <p>{validityNote}</p>
         </div>
         
@@ -105,20 +105,20 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
               <p key={winner.name} className="text-2xl font-semibold text-white animate-pulse">{winner.name}</p>
             ))}
             <p className="text-xs text-green-400 mt-2">
-              (Các ứng viên có số phiếu cao nhất đã trúng cử)
+              (Các ứng viên đạt trên 50% số phiếu bầu đã trúng cử)
             </p>
           </div>
         ) : (
             <div className="my-6 p-4 bg-yellow-900/50 border-l-4 border-yellow-500 rounded-r-lg text-center">
                 <h4 className="text-lg font-semibold text-yellow-300">Chưa có ứng viên trúng cử</h4>
-                <p className="text-yellow-400 mt-1">Không có phiếu bầu hợp lệ nào được ghi nhận hoặc tất cả ứng viên đều có 0 phiếu.</p>
+                <p className="text-yellow-400 mt-1">Không có ứng viên nào đạt trên 50% số phiếu bầu.</p>
             </div>
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-green-400 uppercase bg-gray-700">
-              <tr>
+              <tr className="print-table-row">
                 <th scope="col" className="px-6 py-3">Ứng viên</th>
                 <th scope="col" className="px-6 py-3">Số phiếu</th>
                 <th scope="col" className="px-6 py-3">
@@ -127,8 +127,8 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
               </tr>
             </thead>
             <tbody>
-              {results.map((result) => (
-                <tr key={result.name} className={`border-b border-gray-700 transition-colors duration-300 ${result.isWinner ? 'bg-green-600/30' : 'bg-gray-800'}`}>
+              {results.map((result, index) => (
+                <tr key={result.name} className={`border-b border-gray-700 transition-colors duration-300 print-table-row ${result.isWinner ? 'bg-green-600/30' : (index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700/40')}`}>
                   <td className={`px-6 py-4 font-medium whitespace-nowrap ${result.isWinner ? 'text-green-300' : 'text-white'}`}>{result.name}</td>
                   <td className={`px-6 py-4 ${result.isWinner ? 'font-bold text-green-300' : ''}`}>{result.votes}</td>
                   <td className={`px-6 py-4 ${result.isWinner ? 'font-bold text-green-300' : ''}`}>{result.percentage}</td>
