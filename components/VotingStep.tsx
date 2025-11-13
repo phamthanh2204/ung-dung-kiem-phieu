@@ -73,7 +73,7 @@ const VotingStep: React.FC<VotingStepProps> = ({ candidates, ballotCount, votes,
       <div className="mt-8 text-center flex flex-col md:flex-row justify-center items-center gap-4">
         <button
           onClick={onBackToSetup}
-          className="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition duration-300 ease-in-out"
+          className="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-90 transition duration-300 ease-in-out"
         >
           Quay lại bước 1
         </button>
