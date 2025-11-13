@@ -14,3 +14,13 @@ export interface InvalidBallotCriteria {
   lessThanRequired: boolean;
   blank: boolean;
 }
+
+export interface ElectionResults {
+  results: ResultData[];
+  totalVotes: number;
+  totalBallots: number;
+  validBallots: number;
+  invalidBallots: number;
+  validityNote: string;
+  winners: ResultData[];
+}

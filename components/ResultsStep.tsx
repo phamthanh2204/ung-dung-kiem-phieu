@@ -1,110 +1,27 @@
-import React, { useMemo } from 'react';
-import { ResultData, CalculationMode, InvalidBallotCriteria } from '../types';
+import React from 'react';
+import { ResultData, CalculationMode, ElectionResults } from '../types';
 import { ChartBarIcon, ArrowDownTrayIcon, PrinterIcon } from './icons';
 
 interface ResultsStepProps {
+  resultsData: ElectionResults;
   candidates: string[];
   votes: string[][];
   onReview: () => void;
-  candidatesToElect: number;
-  ballotCount: number;
   onNewPoll: () => void;
   calculationMode: CalculationMode;
   onCalculationModeChange: (mode: CalculationMode) => void;
-  invalidBallotCriteria: InvalidBallotCriteria;
 }
 
 const ResultsStep: React.FC<ResultsStepProps> = ({ 
+  resultsData,
   candidates, 
   votes, 
   onReview, 
-  candidatesToElect, 
-  ballotCount, 
   onNewPoll,
   calculationMode,
   onCalculationModeChange,
-  invalidBallotCriteria,
 }) => {
-
-  const { results, totalVotes, totalBallots, validBallots, invalidBallots, validityNote } = useMemo(() => {
-    const voteCounts: { [key: string]: number } = {};
-    candidates.forEach(c => voteCounts[c] = 0);
-
-    let talliedVotes = 0;
-    const totalBallotsCount = votes.length;
-    let validBallotsCount = 0;
-
-    const isBallotInvalid = (ballot: string[], criteria: InvalidBallotCriteria, toElect: number): boolean => {
-        if (!ballot) return true;
-        const selectionCount = ballot.length;
-        if (criteria.moreThanRequired && selectionCount > toElect) return true;
-        if (criteria.lessThanRequired && selectionCount > 0 && selectionCount < toElect) return true;
-        if (criteria.blank && selectionCount === 0) return true;
-        return false;
-    }
-
-    votes.forEach(ballot => {
-      if (ballot && !isBallotInvalid(ballot, invalidBallotCriteria, candidatesToElect)) {
-        validBallotsCount++;
-        ballot.forEach(candidateName => {
-          if (voteCounts.hasOwnProperty(candidateName)) {
-            voteCounts[candidateName]++;
-            talliedVotes++;
-          }
-        });
-      }
-    });
-
-    const invalidBallotsCount = totalBallotsCount - validBallotsCount;
-
-    const sortedCandidates = candidates
-      .map(c => ({ name: c, votes: voteCounts[c] }))
-      .sort((a, b) => b.votes - a.votes);
-
-    const topCandidateNames = sortedCandidates.slice(0, candidatesToElect).map(c => c.name);
-    
-    const resultData: ResultData[] = sortedCandidates.map(candidate => {
-      const denominator = calculationMode === 'validBallots' ? (validBallotsCount > 0 ? validBallotsCount : 1) : (ballotCount > 0 ? ballotCount : 1);
-      const percentageValue = (candidate.votes / denominator) * 100;
-      
-      const thresholdDenominator = calculationMode === 'validBallots' ? validBallotsCount : ballotCount;
-      const meetsThreshold = thresholdDenominator > 0 && candidate.votes > (thresholdDenominator / 2);
-      const isInTopGroup = topCandidateNames.includes(candidate.name);
-
-      return {
-        name: candidate.name,
-        votes: candidate.votes,
-        percentage: percentageValue.toFixed(2) + '%',
-        isWinner: isInTopGroup && meetsThreshold,
-      };
-    });
-    
-    const invalidReasonParts: string[] = [];
-    if (invalidBallotCriteria.moreThanRequired) invalidReasonParts.push(`chọn nhiều hơn ${candidatesToElect} ứng viên`);
-    if (invalidBallotCriteria.lessThanRequired) invalidReasonParts.push(`chọn ít hơn ${candidatesToElect} ứng viên (nhưng không phải phiếu trắng)`);
-    if (invalidBallotCriteria.blank) invalidReasonParts.push("để trống");
-    
-    let note = 'Phiếu hợp lệ là phiếu không vi phạm bất kỳ quy tắc nào được chọn ở bước thiết lập.';
-    if (invalidReasonParts.length > 0 && invalidReasonParts.length < 3) {
-      note = `Phiếu bị coi là không hợp lệ nếu: ${invalidReasonParts.join('; ')}.`;
-    } else if (invalidReasonParts.length === 0) {
-        note = 'Tất cả các phiếu đều được coi là hợp lệ theo thiết lập.';
-    } else { // All 3 are selected
-        note = `Phiếu hợp lệ là phiếu đã chọn đúng ${candidatesToElect} ứng viên.`
-    }
-
-
-    return { 
-      results: resultData, 
-      totalVotes: talliedVotes, 
-      totalBallots: totalBallotsCount,
-      validBallots: validBallotsCount,
-      invalidBallots: invalidBallotsCount,
-      validityNote: note,
-    };
-  }, [candidates, votes, candidatesToElect, ballotCount, calculationMode, invalidBallotCriteria]);
-  
-  const winners = useMemo(() => results.filter(r => r.isWinner), [results]);
+  const { results, totalBallots, validBallots, invalidBallots, validityNote, winners } = resultsData;
 
   const handleDownloadExcel = () => {
     const headers = ['Phiếu #', ...candidates];
@@ -170,13 +87,13 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                     onClick={() => onCalculationModeChange('totalBallots')}
                     className={`px-3 py-1 text-sm rounded-md transition-colors ${calculationMode === 'totalBallots' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 >
-                    Tổng phiếu phát ra
+                    Tổng số phiếu phát ra
                 </button>
                 <button 
                     onClick={() => onCalculationModeChange('validBallots')}
                     className={`px-3 py-1 text-sm rounded-md transition-colors ${calculationMode === 'validBallots' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 >
-                    Tổng phiếu hợp lệ
+                    Tổng số phiếu hợp lệ
                 </button>
             </div>
         </div>
@@ -188,16 +105,14 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
               <p key={winner.name} className="text-2xl font-semibold text-white animate-pulse">{winner.name}</p>
             ))}
             <p className="text-xs text-green-400 mt-2">
-              (Trúng cử khi nằm trong nhóm dẫn đầu VÀ có số phiếu bầu &gt; 50% trên tổng số phiếu {calculationMode === 'validBallots' ? 'hợp lệ' : 'đã thiết lập'})
+              (Các ứng viên có số phiếu cao nhất đã trúng cử)
             </p>
           </div>
         ) : (
-          validBallots > 0 && (
             <div className="my-6 p-4 bg-yellow-900/50 border-l-4 border-yellow-500 rounded-r-lg text-center">
                 <h4 className="text-lg font-semibold text-yellow-300">Chưa có ứng viên trúng cử</h4>
-                <p className="text-yellow-400 mt-1">Không có ứng viên nào trong nhóm dẫn đầu đạt trên 50% tổng số phiếu {calculationMode === 'validBallots' ? 'hợp lệ' : 'đã thiết lập'}.</p>
+                <p className="text-yellow-400 mt-1">Không có phiếu bầu hợp lệ nào được ghi nhận hoặc tất cả ứng viên đều có 0 phiếu.</p>
             </div>
-          )
         )}
 
         <div className="overflow-x-auto">
@@ -207,7 +122,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                 <th scope="col" className="px-6 py-3">Ứng viên</th>
                 <th scope="col" className="px-6 py-3">Số phiếu</th>
                 <th scope="col" className="px-6 py-3">
-                  Tỷ lệ % / {calculationMode === 'validBallots' ? 'Phiếu hợp lệ' : 'Tổng phiếu'}
+                  Tỷ lệ % / {calculationMode === 'validBallots' ? 'Tổng phiếu hợp lệ' : 'Tổng phiếu phát ra'}
                 </th>
               </tr>
             </thead>

@@ -5,7 +5,7 @@ import VotingStep from './components/VotingStep';
 import ResultsStep from './components/ResultsStep';
 import ContactModal from './components/ContactModal';
 import { BookOpenIcon } from './components/icons';
-import { Step, CalculationMode, InvalidBallotCriteria } from './types';
+import { Step, CalculationMode, InvalidBallotCriteria, ResultData, ElectionResults } from './types';
 
 const LOCAL_STORAGE_KEY = 'electionAppState';
 
@@ -19,6 +19,7 @@ interface ElectionState {
   prefillVotes: boolean;
   calculationMode: CalculationMode;
   invalidBallotCriteria: InvalidBallotCriteria;
+  electionResults: ElectionResults | null;
 }
 
 const defaultInvalidBallotCriteria: InvalidBallotCriteria = {
@@ -39,6 +40,9 @@ const loadState = (): ElectionState | undefined => {
       if (!savedState.invalidBallotCriteria) {
         savedState.invalidBallotCriteria = defaultInvalidBallotCriteria;
       }
+       if (typeof savedState.electionResults === 'undefined') {
+          savedState.electionResults = null;
+      }
       return savedState;
     }
     return undefined;
@@ -57,11 +61,11 @@ const App: React.FC = () => {
     votes: [],
     hasVisitedVoting: false,
     prefillVotes: false,
-    calculationMode: 'totalBallots',
+    calculationMode: 'validBallots',
     invalidBallotCriteria: defaultInvalidBallotCriteria,
+    electionResults: null,
   });
 
-  // Fix: Cast the step from initialState to the Step type. This is necessary because data from localStorage is treated as a generic string.
   const [step, setStep] = useState<Step>(initialState.step as Step);
   const [candidates, setCandidates] = useState<string[]>(initialState.candidates);
   const [ballotCount, setBallotCount] = useState<number>(initialState.ballotCount);
@@ -69,15 +73,15 @@ const App: React.FC = () => {
   const [votes, setVotes] = useState<string[][]>(initialState.votes);
   const [hasVisitedVoting, setHasVisitedVoting] = useState<boolean>(initialState.hasVisitedVoting);
   const [prefillVotes, setPrefillVotes] = useState<boolean>(initialState.prefillVotes);
-  // Fix: Cast calculationMode from initialState to the CalculationMode type. This ensures type safety for data loaded from localStorage.
-  const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'totalBallots') as CalculationMode);
+  const [calculationMode, setCalculationMode] = useState<CalculationMode>((initialState.calculationMode || 'validBallots') as CalculationMode);
   const [invalidBallotCriteria, setInvalidBallotCriteria] = useState<InvalidBallotCriteria>(initialState.invalidBallotCriteria || defaultInvalidBallotCriteria);
+  const [electionResults, setElectionResults] = useState<ElectionResults | null>(initialState.electionResults);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const instructionsUrl = 'https://docs.google.com/spreadsheets/d/18Hn0APJ-lNPxTXN5vn3f9IyLF4rbOZOnpBO38W_vzNQ/edit?usp=sharing';
 
 
   useEffect(() => {
-    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria };
+    const stateToSave: ElectionState = { step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria, electionResults };
     if (step !== 'setup' || candidates.length > 0 || ballotCount > 0) {
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
@@ -85,7 +89,110 @@ const App: React.FC = () => {
         console.error("Lỗi khi lưu trạng thái vào localStorage:", error);
       }
     }
-  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria]);
+  }, [step, candidates, ballotCount, candidatesToElect, votes, hasVisitedVoting, prefillVotes, calculationMode, invalidBallotCriteria, electionResults]);
+
+  const calculateResults = useCallback((mode: CalculationMode): ElectionResults | null => {
+    if (candidates.length === 0) {
+        return null;
+    }
+      
+    const voteCounts: { [key: string]: number } = {};
+    candidates.forEach(c => voteCounts[c] = 0);
+
+    const totalBallotsCount = votes.length;
+    let validBallotsCount = 0;
+    let totalValidSelections = 0;
+
+    const isBallotInvalid = (ballot: string[], criteria: InvalidBallotCriteria, toElect: number): boolean => {
+        if (!ballot) return true;
+        const selectionCount = ballot.length;
+        if (criteria.moreThanRequired && selectionCount > toElect) return true;
+        if (criteria.lessThanRequired && selectionCount > 0 && selectionCount < toElect) return true;
+        if (criteria.blank && selectionCount === 0) return true;
+        return false;
+    }
+
+    votes.forEach(ballot => {
+      if (ballot && !isBallotInvalid(ballot, invalidBallotCriteria, candidatesToElect)) {
+        validBallotsCount++;
+        ballot.forEach(candidateName => {
+          if (voteCounts.hasOwnProperty(candidateName)) {
+            voteCounts[candidateName]++;
+            totalValidSelections++;
+          }
+        });
+      }
+    });
+
+    const invalidBallotsCount = totalBallotsCount - validBallotsCount;
+
+    const sortedCandidates = candidates
+      .map(c => ({ name: c, votes: voteCounts[c] }))
+      .sort((a, b) => b.votes - a.votes);
+
+    let topCandidateNames: string[] = [];
+    if (candidatesToElect > 0 && sortedCandidates.length > 0 && sortedCandidates[0].votes > 0) {
+        const voteThreshold = sortedCandidates[candidatesToElect - 1]?.votes ?? 0;
+        topCandidateNames = sortedCandidates
+            .filter(c => c.votes >= voteThreshold && c.votes > 0)
+            .map(c => c.name);
+    }
+    
+    const resultData: ResultData[] = sortedCandidates.map(candidate => {
+      let denominator: number;
+      if (mode === 'validBallots') {
+          denominator = validBallotsCount > 0 ? validBallotsCount : 1;
+      } else { // 'totalBallots'
+          denominator = totalBallotsCount > 0 ? totalBallotsCount : 1;
+      }
+      const percentageValue = (candidate.votes / denominator) * 100;
+      
+      const isInTopGroup = topCandidateNames.includes(candidate.name);
+
+      return {
+        name: candidate.name,
+        votes: candidate.votes,
+        percentage: percentageValue.toFixed(2) + '%',
+        isWinner: isInTopGroup,
+      };
+    });
+    
+    const invalidReasonParts: string[] = [];
+    if (invalidBallotCriteria.moreThanRequired) invalidReasonParts.push(`chọn nhiều hơn ${candidatesToElect} ứng viên`);
+    if (invalidBallotCriteria.lessThanRequired) invalidReasonParts.push(`chọn ít hơn ${candidatesToElect} ứng viên (nhưng không phải phiếu trắng)`);
+    if (invalidBallotCriteria.blank) invalidReasonParts.push("để trống");
+    
+    let note = 'Phiếu hợp lệ là phiếu không vi phạm bất kỳ quy tắc nào được chọn ở bước thiết lập.';
+    if (invalidReasonParts.length > 0 && invalidReasonParts.length < 3) {
+      note = `Phiếu bị coi là không hợp lệ nếu: ${invalidReasonParts.join('; ')}.`;
+    } else if (invalidReasonParts.length === 0) {
+        note = 'Tất cả các phiếu đều được coi là hợp lệ theo thiết lập.';
+    } else { // All 3 are selected
+        note = `Phiếu hợp lệ là phiếu đã chọn đúng ${candidatesToElect} ứng viên.`
+    }
+
+    const winners = resultData.filter(r => r.isWinner);
+
+    return {
+      results: resultData, 
+      totalVotes: totalValidSelections, 
+      totalBallots: totalBallotsCount,
+      validBallots: validBallotsCount,
+      invalidBallots: invalidBallotsCount,
+      validityNote: note,
+      winners: winners
+    };
+  }, [candidates, votes, candidatesToElect, invalidBallotCriteria]);
+
+  useEffect(() => {
+    if (step === 'results') {
+        const newResults = calculateResults(calculationMode);
+        if (newResults) {
+            setElectionResults(newResults);
+        }
+    }
+  }, [calculationMode, step, calculateResults]);
+
 
   const handleStartVoting = useCallback((newCandidates: string[], newBallotCount: number, newCandidatesToElect: number, newPrefillVotes: boolean, newInvalidBallotCriteria: InvalidBallotCriteria) => {
     setCandidates(newCandidates);
@@ -124,8 +231,12 @@ const App: React.FC = () => {
   }, [candidatesToElect]);
 
   const handleFinishVoting = useCallback(() => {
+    const initialResults = calculateResults(calculationMode);
+     if (initialResults) {
+        setElectionResults(initialResults);
+    }
     setStep('results');
-  }, []);
+  }, [calculateResults, calculationMode]);
 
   const handleReviewVoting = useCallback(() => {
     setStep('voting');
@@ -139,8 +250,9 @@ const App: React.FC = () => {
     setVotes([]);
     setHasVisitedVoting(false);
     setPrefillVotes(false);
-    setCalculationMode('totalBallots');
+    setCalculationMode('validBallots');
     setInvalidBallotCriteria(defaultInvalidBallotCriteria);
+    setElectionResults(null);
     try {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     } catch (error)
@@ -181,17 +293,15 @@ const App: React.FC = () => {
                   onBackToSetup={handleBackToSetup}
                 />;
       case 'results':
-        return <ResultsStep 
-                  candidates={candidates} 
+        return electionResults ? <ResultsStep 
+                  resultsData={electionResults}
+                  candidates={candidates}
                   votes={votes}
                   onReview={handleReviewVoting}
-                  candidatesToElect={candidatesToElect}
-                  ballotCount={ballotCount}
                   onNewPoll={handleNewPoll}
                   calculationMode={calculationMode}
                   onCalculationModeChange={setCalculationMode}
-                  invalidBallotCriteria={invalidBallotCriteria}
-                />;
+                /> : null;
       default:
         return null;
     }
