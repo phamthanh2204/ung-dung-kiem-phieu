@@ -312,7 +312,7 @@ const App: React.FC = () => {
       </main>
       <footer className="no-print text-center py-4 text-gray-500 text-sm">
         <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p>Phát triển bởi ThanhPV</p>
+            <p>Phát triển bởi ThanhPV ©2024</p>
             <div className="flex items-center justify-center flex-wrap gap-4">
                <a
                   href={instructionsUrl}
